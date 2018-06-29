@@ -35,6 +35,7 @@ func Provider() terraform.ResourceProvider {
 		ResourcesMap: map[string]*schema.Resource{
 			"ns1_zone":          zoneResource(),
 			"ns1_record":        recordResource(),
+			"ns1_answer":        answerResource(),
 			"ns1_datasource":    dataSourceResource(),
 			"ns1_datafeed":      dataFeedResource(),
 			"ns1_monitoringjob": monitoringJobResource(),
@@ -46,6 +47,9 @@ func Provider() terraform.ResourceProvider {
 		ConfigureFunc: ns1Configure,
 	}
 }
+
+// Global mutex for records
+var RecordMutex = NewRecordMutexKV()
 
 var ErrNoAPIKey = errors.New("ns1: could not find api key")
 
