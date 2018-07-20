@@ -163,6 +163,9 @@ func updateRecordForRegion(op string, meta interface{}, d *schema.ResourceData) 
 			Meta: data.Meta{},
 		}
 		meta := data.MetaFromMap(d.Get("meta").(map[string]interface{}))
+		if meta == nil {
+			return nil, errors.New("could not read metadata")
+		}
 		region.Meta = *meta
 		errs := region.Meta.Validate()
 		if len(errs) > 0 {
@@ -181,6 +184,9 @@ func updateRecordForRegion(op string, meta interface{}, d *schema.ResourceData) 
 		// Replace the region
 		region := r.Regions[d.Get("name").(string)]
 		meta := data.MetaFromMap(d.Get("meta").(map[string]interface{}))
+		if meta == nil {
+			return nil, errors.New("could not read metadata")
+		}
 		region.Meta = *meta
 		errs := region.Meta.Validate()
 		if len(errs) > 0 {
