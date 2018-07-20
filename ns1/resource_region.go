@@ -135,25 +135,25 @@ func findRegion(d *schema.ResourceData, record *dns.Record, old bool) (data.Regi
 	return nil, nil
 }
 
-func updateRecordForRegion(op string, meta interface{}, d *schema.ResourceData) (data.Regions, error) {
+func updateRecordForRegion(op string, meta interface{}, resourceData *schema.ResourceData) (data.Regions, error) {
 	client := meta.(*ns1.Client)
 	var regions = data.Regions{}
 	// get the record to get the zone before creating lock
-	r, err := findRecordByRegion(client, d.Get("record").(string))
+	record, err := findRecordByRegion(client, resourceData.Get("record").(string))
 	if err != nil {
 		return nil, err
 	}
-	err = RecordMutex.Lock(client, &regions, d.Get("record").(string), r.Zone)
+	err = RecordMutex.Lock(client, &regions, resourceData.Get("record").(string), record.Zone)
 	if err != nil {
 		return nil, err
 	}
-	defer RecordMutex.Unlock(client, &regions, d.Get("record").(string), r.Zone)
+	defer RecordMutex.Unlock(client, &regions, resourceData.Get("record").(string), record.Zone)
 	// get the record again after creating lock
-	r, err = findRecordByRegion(client, d.Get("record").(string))
+	record, err = findRecordByRegion(client, resourceData.Get("record").(string))
 	if err != nil {
 		return nil, err
 	}
-	if err := resourceDataToRegions(regions, d, false); err != nil {
+	if err := resourceDataToRegions(regions, resourceData, false); err != nil {
 		return nil, err
 	}
 	switch op {
@@ -162,7 +162,7 @@ func updateRecordForRegion(op string, meta interface{}, d *schema.ResourceData) 
 		region := data.Region{
 			Meta: data.Meta{},
 		}
-		meta := data.MetaFromMap(d.Get("meta").(map[string]interface{}))
+		meta := data.MetaFromMap(resourceData.Get("meta").(map[string]interface{}))
 		if meta == nil {
 			return nil, errors.New("could not read metadata")
 		}
@@ -171,19 +171,19 @@ func updateRecordForRegion(op string, meta interface{}, d *schema.ResourceData) 
 		if len(errs) > 0 {
 			return nil, errJoin(append([]error{errors.New("found error/s in region metadata")}, errs...), ",")
 		}
-		r.Regions[d.Get("name").(string)] = region
-		if _, err := client.Records.Update(r); err != nil {
+		record.Regions[resourceData.Get("name").(string)] = region
+		if _, err := client.Records.Update(record); err != nil {
 			return nil, err
 		}
-		regions[d.Get("name").(string)] = region
+		regions[resourceData.Get("name").(string)] = region
 	case "update":
-		_, err := findRegion(d, r, true)
+		_, err := findRegion(resourceData, record, true)
 		if err != nil {
 			return nil, err
 		}
 		// Replace the region
-		region := r.Regions[d.Get("name").(string)]
-		meta := data.MetaFromMap(d.Get("meta").(map[string]interface{}))
+		region := record.Regions[resourceData.Get("name").(string)]
+		meta := data.MetaFromMap(resourceData.Get("meta").(map[string]interface{}))
 		if meta == nil {
 			return nil, errors.New("could not read metadata")
 		}
@@ -192,22 +192,22 @@ func updateRecordForRegion(op string, meta interface{}, d *schema.ResourceData) 
 		if len(errs) > 0 {
 			return nil, errJoin(append([]error{errors.New("found error/s in region metadata")}, errs...), ",")
 		}
-		r.Regions[d.Get("name").(string)] = region
-		if _, err := client.Records.Update(r); err != nil {
+		record.Regions[resourceData.Get("name").(string)] = region
+		if _, err := client.Records.Update(record); err != nil {
 			return nil, err
 		}
-		regions[d.Get("name").(string)] = region
+		regions[resourceData.Get("name").(string)] = region
 	case "delete":
-		_, err := findRegion(d, r, false)
+		_, err := findRegion(resourceData, record, false)
 		if err != nil {
 			return nil, err
 		}
 		// Delete the region
-		delete(r.Regions, d.Get("name").(string))
-		if _, err := client.Records.Update(r); err != nil {
+		delete(record.Regions, resourceData.Get("name").(string))
+		if _, err := client.Records.Update(record); err != nil {
 			return nil, err
 		}
-		d.SetId("")
+		resourceData.SetId("")
 	}
 	return regions, nil
 }
