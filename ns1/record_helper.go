@@ -17,14 +17,14 @@ type RecordMutexKV struct {
 // Lock creates a TXT record in the given zone indicating that the given record is being altered, so that parallel
 // executions of this provider are synchronized. This is safe for use by multiple goroutines. A non-nil error is
 // returned if the TXT record cannot be created.
-func (m *RecordMutexKV) Lock(client *ns1.Client, i interface{}, record string, zone string) error {
+func (mutex *RecordMutexKV) Lock(client *ns1.Client, i interface{}, record string, zone string) error {
 	log.Printf("[DEBUG] Locking Record %q", record)
 	hashRecord := strconv.Itoa(hashcode.String(record)) + "." + zone
-	m.mutexkv.Lock(hashRecord)
-	m.mutexkv.Lock(record)
-	defer m.mutexkv.Unlock(record)
+	mutex.mutexkv.Lock(hashRecord)
+	mutex.mutexkv.Lock(record)
+	defer mutex.mutexkv.Unlock(record)
 
-	if recordTracker, ok := m.tracker[record]; ok {
+	if recordTracker, ok := mutex.tracker[record]; ok {
 		for p := range recordTracker {
 			if p == i {
 				return nil
@@ -37,7 +37,7 @@ func (m *RecordMutexKV) Lock(client *ns1.Client, i interface{}, record string, z
 		}
 	}
 
-	m.tracker[record] = append(m.tracker[record], i)
+	mutex.tracker[record] = append(mutex.tracker[record], i)
 
 	log.Printf("[DEBUG] Locked Record %q", record)
 	return nil
@@ -46,21 +46,21 @@ func (m *RecordMutexKV) Lock(client *ns1.Client, i interface{}, record string, z
 // Unlock removes object `i` as a holder of the TXT record lock. If no such holders are left after this, Unlock
 // deletes the TXT record. This is safe for use by multiple goroutines. A non-nil error is returned if the TXT record
 // cannot be deleted.
-func (m *RecordMutexKV) Unlock(client *ns1.Client, i interface{}, record string, zone string) error {
+func (mutex *RecordMutexKV) Unlock(client *ns1.Client, i interface{}, record string, zone string) error {
 	log.Printf("[DEBUG] Unlocking Record %q", record)
 	hashRecord := strconv.Itoa(hashcode.String(record)) + "." + zone
-	m.mutexkv.Lock(record)
-	defer m.mutexkv.Unlock(record)
-	defer m.mutexkv.Unlock(hashRecord)
+	mutex.mutexkv.Lock(record)
+	defer mutex.mutexkv.Unlock(record)
+	defer mutex.mutexkv.Unlock(hashRecord)
 
-	if recordTracker, ok := m.tracker[record]; ok {
+	if recordTracker, ok := mutex.tracker[record]; ok {
 		for t := len(recordTracker) - 1; t >= 0; t-- {
 			if recordTracker[t] == i {
-				m.tracker[record] = append(recordTracker[:t], recordTracker[t+1:]...)
+				mutex.tracker[record] = append(recordTracker[:t], recordTracker[t+1:]...)
 			}
 		}
 	}
-	if len(m.tracker[record]) == 0 {
+	if len(mutex.tracker[record]) == 0 {
 		if _, err := client.Records.Delete(zone, hashRecord, "TXT"); err != nil {
 			return err
 		}

@@ -41,10 +41,10 @@ func regionResource() *schema.Resource {
 }
 
 // Get Region from Regions
-func getRegion(r data.Regions) (string, *data.Region) {
+func getRegion(regions data.Regions) (string, *data.Region) {
 	var name string
 	var region *data.Region
-	for k, v := range r {
+	for k, v := range regions {
 		name = k
 		region = &v
 		break
@@ -62,21 +62,21 @@ func regionToMap(regions data.Regions) map[string]interface{} {
 	return m
 }
 
-func regionsToResourceData(d *schema.ResourceData, regions data.Regions) error {
+func regionsToResourceData(resourceData *schema.ResourceData, regions data.Regions) error {
 	m := regionToMap(regions)
-	d.Set("name", m["name"])
+	resourceData.Set("name", m["name"])
 	if m["meta"] != nil {
-		d.Set("meta", m["meta"])
+		resourceData.Set("meta", m["meta"])
 	}
-	d.SetId(regionIDHash(d))
+	resourceData.SetId(regionIDHash(resourceData))
 	return nil
 }
 
-func resourceDataToRegions(regions data.Regions, d *schema.ResourceData, old bool) error {
+func resourceDataToRegions(regions data.Regions, resourceData *schema.ResourceData, old bool) error {
 	var name string
 	var meta map[string]interface{}
-	oldName, newName := d.GetChange("name")
-	oldMeta, newMeta := d.GetChange("meta")
+	oldName, newName := resourceData.GetChange("name")
+	oldMeta, newMeta := resourceData.GetChange("meta")
 	if old {
 		name = oldName.(string)
 		meta = oldMeta.(map[string]interface{})
@@ -106,22 +106,22 @@ func findRecordByRegion(client *ns1.Client, domain string) (*dns.Record, error) 
 		if err != nil {
 			return nil, err
 		}
-		for _, record := range zone.Records {
-			if domain == record.Domain {
-				r, _, err := client.Records.Get(z.Zone, record.Domain, record.Type)
+		for _, r := range zone.Records {
+			if domain == r.Domain {
+				record, _, err := client.Records.Get(z.Zone, r.Domain, r.Type)
 				if err != nil {
 					return nil, err
 				}
-				return r, err
+				return record, err
 			}
 		}
 	}
 	return nil, fmt.Errorf("record not found: %s", domain)
 }
 
-func findRegion(d *schema.ResourceData, record *dns.Record, old bool) (data.Regions, error) {
+func findRegion(resourceData *schema.ResourceData, record *dns.Record, old bool) (data.Regions, error) {
 	var regions = data.Regions{}
-	if err := resourceDataToRegions(regions, d, true); err != nil {
+	if err := resourceDataToRegions(regions, resourceData, true); err != nil {
 		return nil, err
 	}
 	name, _ := getRegion(regions)
@@ -212,12 +212,12 @@ func updateRecordForRegion(op string, meta interface{}, resourceData *schema.Res
 	return regions, nil
 }
 
-func regionIDHash(d *schema.ResourceData) string {
+func regionIDHash(resourceData *schema.ResourceData) string {
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("%s-", d.Get("record").(string)))
-	buf.WriteString(fmt.Sprintf("%s-", d.Get("name").(string)))
-	if d.Get("meta").(map[string]interface{}) != nil {
-		for k, v := range d.Get("meta").(map[string]interface{}) {
+	buf.WriteString(fmt.Sprintf("%s-", resourceData.Get("record").(string)))
+	buf.WriteString(fmt.Sprintf("%s-", resourceData.Get("name").(string)))
+	if resourceData.Get("meta").(map[string]interface{}) != nil {
+		for k, v := range resourceData.Get("meta").(map[string]interface{}) {
 			buf.WriteString(fmt.Sprintf("%s-%s-", k, v))
 		}
 	}
@@ -225,38 +225,38 @@ func regionIDHash(d *schema.ResourceData) string {
 }
 
 // RegionCreate creates region for given record in ns1
-func RegionCreate(d *schema.ResourceData, meta interface{}) error {
-	regions, err := updateRecordForRegion("create", meta, d)
+func RegionCreate(resourceData *schema.ResourceData, meta interface{}) error {
+	regions, err := updateRecordForRegion("create", meta, resourceData)
 	if err != nil {
 		return err
 	}
-	return regionsToResourceData(d, regions)
+	return regionsToResourceData(resourceData, regions)
 }
 
 // RegionRead reads the region for given record from ns1
-func RegionRead(d *schema.ResourceData, meta interface{}) error {
+func RegionRead(resourceData *schema.ResourceData, meta interface{}) error {
 	client := meta.(*ns1.Client)
-	r, err := findRecordByRegion(client, d.Get("record").(string))
+	record, err := findRecordByRegion(client, resourceData.Get("record").(string))
 	if err != nil {
 		if !strings.Contains(err.Error(), "record not found") {
 			return err
 		}
 	}
-	region, err := findRegion(d, r, false)
+	region, err := findRegion(resourceData, record, false)
 	if err != nil {
 		return err
 	}
 	// Could not find region
 	if region == nil {
-		d.SetId("")
+		resourceData.SetId("")
 		return nil
 	}
-	return regionsToResourceData(d, region)
+	return regionsToResourceData(resourceData, region)
 }
 
 // RegionDelete deletes the region from the record from ns1
-func RegionDelete(d *schema.ResourceData, meta interface{}) error {
-	_, err := updateRecordForRegion("delete", meta, d)
+func RegionDelete(resourceData *schema.ResourceData, meta interface{}) error {
+	_, err := updateRecordForRegion("delete", meta, resourceData)
 	if err != nil {
 		return err
 	}
@@ -264,10 +264,10 @@ func RegionDelete(d *schema.ResourceData, meta interface{}) error {
 }
 
 // RegionUpdate updates the given region in the record in ns1
-func RegionUpdate(d *schema.ResourceData, meta interface{}) error {
-	region, err := updateRecordForRegion("update", meta, d)
+func RegionUpdate(resourceData *schema.ResourceData, meta interface{}) error {
+	region, err := updateRecordForRegion("update", meta, resourceData)
 	if err != nil {
 		return err
 	}
-	return regionsToResourceData(d, region)
+	return regionsToResourceData(resourceData, region)
 }
