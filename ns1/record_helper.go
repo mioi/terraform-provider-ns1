@@ -14,6 +14,9 @@ type RecordMutexKV struct {
 	tracker map[string][]interface{}
 }
 
+// Lock creates a TXT record in the given zone indicating that the given record is being altered, so that parallel
+// executions of this provider are synchronized. This is safe for use by multiple goroutines. A non-nil error is
+// returned if the TXT record cannot be created.
 func (m *RecordMutexKV) Lock(client *ns1.Client, i interface{}, record string, zone string) error {
 	log.Printf("[DEBUG] Locking Record %q", record)
 	hashRecord := strconv.Itoa(hashcode.String(record)) + "." + zone
@@ -40,6 +43,9 @@ func (m *RecordMutexKV) Lock(client *ns1.Client, i interface{}, record string, z
 	return nil
 }
 
+// Unlock removes object `i` as a holder of the TXT record lock. If no such holders are left after this, Unlock
+// deletes the TXT record. This is safe for use by multiple goroutines. A non-nil error is returned if the TXT record
+// cannot be deleted.
 func (m *RecordMutexKV) Unlock(client *ns1.Client, i interface{}, record string, zone string) error {
 	log.Printf("[DEBUG] Unlocking Record %q", record)
 	hashRecord := strconv.Itoa(hashcode.String(record)) + "." + zone
