@@ -275,14 +275,14 @@ func AnswerUpdate(resourceData *schema.ResourceData, meta interface{}) error {
 }
 
 
-func AnswerStateFunc(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-	parts := strings.Split(d.Id(), "/")
+func AnswerStateFunc(resourceData *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	parts := strings.Split(resourceData.Id(), "/")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("Invalid answer specifier.  Expecting 1 slash (\"record/answer\"), got %d.", len(parts)-1)
 	}
 
-	d.Set("record", parts[0])
-	d.Set("answer", parts[1])
+	resourceData.Set("record", parts[0])
+	resourceData.Set("answer", parts[1])
 
-	return []*schema.ResourceData{d}, nil
+	return []*schema.ResourceData{resourceData}, nil
 }

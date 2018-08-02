@@ -273,14 +273,14 @@ func RegionUpdate(resourceData *schema.ResourceData, meta interface{}) error {
 	return regionsToResourceData(resourceData, region)
 }
 
-func RegionStateFunc(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-	parts := strings.Split(d.Id(), "/")
+func RegionStateFunc(resourceData *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	parts := strings.Split(resourceData.Id(), "/")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("Invalid region specifier.  Expecting 1 slash (\"record/name\"), got %d.", len(parts)-1)
 	}
 
-	d.Set("record", parts[0])
-	d.Set("name", parts[1])
+	resourceData.Set("record", parts[0])
+	resourceData.Set("name", parts[1])
 
-	return []*schema.ResourceData{d}, nil
+	return []*schema.ResourceData{resourceData}, nil
 }
