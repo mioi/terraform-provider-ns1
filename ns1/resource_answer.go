@@ -42,6 +42,7 @@ func answerResource() *schema.Resource {
 		Read:   AnswerRead,
 		Update: AnswerUpdate,
 		Delete: AnswerDelete,
+		Importer: &schema.ResourceImporter{State: AnswerStateFunc},
 	}
 }
 
@@ -126,6 +127,10 @@ func findAnswer(resourceData *schema.ResourceData, record *dns.Record, old bool)
 	for _, a := range record.Answers {
 		if a.String() != answer.String() {
 			continue
+		}
+		// short-circuit if we only have the name of the answer
+		if answer.RegionName == "" && len(answer.Meta.StringMap()) == 0 {
+			return a, nil
 		}
 		if a.RegionName != answer.RegionName {
 			continue
@@ -267,4 +272,17 @@ func AnswerUpdate(resourceData *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 	return answerToResourceData(resourceData, a)
+}
+
+
+func AnswerStateFunc(resourceData *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	parts := strings.Split(resourceData.Id(), "/")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Invalid answer specifier.  Expecting 1 slash (\"record/answer\"), got %d.", len(parts)-1)
+	}
+
+	resourceData.Set("record", parts[0])
+	resourceData.Set("answer", parts[1])
+
+	return []*schema.ResourceData{resourceData}, nil
 }

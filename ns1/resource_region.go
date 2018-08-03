@@ -37,6 +37,7 @@ func regionResource() *schema.Resource {
 		Read:   RegionRead,
 		Update: RegionUpdate,
 		Delete: RegionDelete,
+		Importer: &schema.ResourceImporter{State: RegionStateFunc},
 	}
 }
 
@@ -270,4 +271,16 @@ func RegionUpdate(resourceData *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 	return regionsToResourceData(resourceData, region)
+}
+
+func RegionStateFunc(resourceData *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	parts := strings.Split(resourceData.Id(), "/")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Invalid region specifier.  Expecting 1 slash (\"record/name\"), got %d.", len(parts)-1)
+	}
+
+	resourceData.Set("record", parts[0])
+	resourceData.Set("name", parts[1])
+
+	return []*schema.ResourceData{resourceData}, nil
 }
